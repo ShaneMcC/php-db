@@ -1,46 +1,29 @@
 <?php
 
 	namespace shanemcc\phpdb;
-	use PDO;
 
-	class Search {
-		/** PDO object to search in. */
-		private $_pdo;
-		/** Main table to search in. */
-		private $_table;
-		/** Fields to extract. */
-		private $_fields;
-		/** last error for this object. */
-		private $lastError = NULL;
-
-		/** Fields to search for. */
-		private $whereFields = [];
-
-		/** Extra keys to get */
-		private $extraSelectKeys = [];
-
-		/** Add Ordering clauses */
-		private $orderBy = [];
-
-		/** Joins. */
-		private $joins = [];
-
-		/** Limit */
-		private $limit = FALSE;
-
-		public function __construct($pdo, $table, $fields) {
-			$this->_pdo = $pdo;
-			$this->_table = $table;
-			$this->_fields = $fields;
-		}
+	/**
+	 * This class is a wrapper around the Operations/Actions classes.
+	 */
+	class Search extends Actions\DBAction {
+		/** Initial fields to select. */
+		protected $_fields;
 
 		/**
-		 * Get the last error we encountered with the database.
+		 * Create a selection action.
 		 *
-		 * @return last error.
+		 * @param $pdo PDO instance to work on
+		 * @param $table Table to start on
+		 * @param $fields Initial fields to select
 		 */
-		public function getLastError() {
-			return $this->lastError;
+		public function __construct($pdo, $table, $fields, $index = FALSE) {
+			parent::__construct($pdo, $table);
+			$this->_fields = $fields;
+
+			// Specific keys to get
+			foreach ($fields as $key) {
+				$this->addOperation(new Operations\Select($table, $key, $key));
+			}
 		}
 
 		/**
@@ -71,8 +54,7 @@
 		 * @return $this for chaining.
 		 */
 		public function where($key, $value, $comparator = null) {
-			$this->whereFields[] = [$key, $comparator, $value];
-			return $this;
+			return $this->addOperation(new Operations\Where($key, $value, $comparator));
 		}
 
 		/**
@@ -83,8 +65,7 @@
 		 * @return $this for chaining.
 		 */
 		public function order($key, $direction = 'ASC') {
-			$this->orderBy[] = [$key, $direction];
-			return $this;
+			return $this->addOperation(new Operations\Order($key, $direction));
 		}
 
 		/**
@@ -95,8 +76,7 @@
 		 * @return $this for chaining.
 		 */
 		public function limit($limit, $offset = FALSE) {
-			$this->limit = [$limit, $offset];
-			return $this;
+			return $this->addOperation(new Operations\Limit($limit, $offset));
 		}
 
 		/**
@@ -112,10 +92,8 @@
 		 * @return $this for chaining.
 		 */
 		public function select($table, $key, $as = null) {
-			if ($as === null) { $as = $key; }
-
 			if (!in_array($as, $this->_fields)) {
-				$this->extraSelectKeys[] = [$table, $key, $as];
+				$this->addOperation(new Operations\Select($table, $key, $as));
 			}
 			return $this;
 		}
@@ -129,27 +107,7 @@
 		 * @return $this for chaining.
 		 */
 		public function join($table, $on = null, $direction = null) {
-			$this->joins[] = [$table, $on, $direction];
-			return $this;
-		}
-
-		/**
-		 * Delete rows based on this object.
-		 *
-		 * @return Array of matching rows.
-		 */
-		public function delete() {
-			list($query, $params) = $this->buildQuery('DELETE');
-
-			$statement = $this->_pdo->prepare($query);
-			$result = $statement->execute($params);
-
-			if ($result) {
-				return TRUE;
-			} else {
-				$this->lastError = $statement->errorInfo();
-				return FALSE;
-			}
+			return $this->addOperation(new Operations\Join($table, $on, $direction));
 		}
 
 		/**
@@ -164,144 +122,19 @@
 		 * @return Array of matching rows.
 		 */
 		public function getRows($index = FALSE) {
-			list($query, $params) = $this->buildQuery();
-
-			$statement = $this->_pdo->prepare($query);
-			$result = $statement->execute($params);
-			$rows = [];
-			if ($result) {
-				$fetch = $statement->fetchAll(PDO::FETCH_ASSOC);
-				if ($index !== FALSE) {
-					foreach ($fetch as $row) {
-						if (!array_key_exists($index, $row)) {
-							$rows = $fetch;
-							continue;
-						}
-
-						$rows[$row[$index]] = $row;
-					}
-				} else {
-					$rows = $fetch;
-				}
-			} else {
-				$this->lastError = $statement->errorInfo();
-			}
-
-			return $rows;
+			return (new Actions\Select($this->getPDO(), $this->getTable(), $index))->addOperations($this->getOperations('*'))->execute();
 		}
 
 		/**
-		 * Build the query to execute.
+		 * Delete rows based on this object.
 		 *
-		 * @return Array [$query, $params] of built query.
+		 * @return True/False if operation was a success.
 		 */
-		public function buildQuery($queryType = 'SELECT') {
-			// Keys we are requesting
-			$keys = [];
-
-			// Specific keys to get
-			foreach ($this->_fields as $key) {
-				$keys[] = sprintf('`%s`.`%s` AS `%s`', $this->_table, $key, $key);
-			}
-			// Extra keys to get.
-			foreach ($this->extraSelectKeys as $tablekey) {
-				$keys[] = sprintf('`%s`.`%s` AS `%s`', $tablekey[0], $tablekey[1], $tablekey[2]);
-			}
-
-			// WHERE Data.
-			$where = [];
-			// Params
-			$params = [];
-			foreach ($this->whereFields as $f) {
-				list($key, $comparator, $value) = $f;
-
-				// If value is an array, then we can do OR or use IN.
-				if (is_array($value)) {
-					$arrayWhere = [];
-					// Use IN for '=' or != or null comparators
-					$useIN = ($comparator === null || $comparator == '=' || $comparator == '!=');
-
-					// PDO doesn't support arrays, so we need to break it out
-					// into separate params and expand the query to include
-					// these params.
-					for ($i = 0; $i < count($value); $i++) {
-						// PDO-Friendly param name.
-						$params[sprintf(':%s_%d', $key, $i)] = $value[$i];
-
-						// If we're using IN then we just generate an array of
-						// parameters, else generate the usual <key> <comparator> <param>
-						if ($useIN) {
-							$arrayWhere[] = sprintf(':%s_%d', $key, $i);
-						} else {
-							$arrayWhere[] = sprintf('`%s` %s :%s_%d', $key, $comparator, $key, $i);
-						}
-					}
-
-					// Either build:
-					//    <key> [NOT] IN (<params>)
-					//    (<key> <comparator> <value> OR <key> <comparator> <value> OR <key> <comparator> <value> ... )
-					if ($useIN) {
-						if ($comparator == '!=') {
-							$where[] = sprintf('`%s` NOT IN (%s)', $key, implode(', ', $arrayWhere));
-						} else {
-							$where[] = sprintf('`%s` IN (%s)', $key, implode(', ', $arrayWhere));
-						}
-					} else {
-						$where[] = '(' . implode(' OR ', $arrayWhere) . ')';
-					}
-				} else {
-					// Not an array, a nice simple <key> <comparator> <value> bit!
-					$where[] = sprintf('`%s` %s :%s', $key, ($comparator === null ? '=' : $comparator), $key);
-					$params[':' . $key] = $value;
-				}
-			}
-
-			// Start off the query!
-			$queryType = strtoupper($queryType);
-			if ($queryType == 'SELECT') {
-				$query = sprintf('SELECT %s FROM %s', implode(', ', $keys), $this->_table);
-			} else if ($queryType == 'DELETE') {
-				$query = sprintf('DELETE FROM %s', $this->_table);
-			} else {
-				return FALSE;
-			}
-
-			// Add in any joins.
-			if (count($this->joins) > 0) {
-				foreach ($this->joins as $join) {
-					// Join Direction
-					if (!empty($join[2])) { $query .= sprintf(' %s', $join[2]); }
-					// Join table
-					$query .= sprintf(' JOIN %s', $join[0]);
-					// Join on
-					if (!empty($join[1])) { $query .= sprintf(' ON %s', $join[1]); }
-				}
-			}
-
-			// Add our WHERE clause.
-			if (count($where) > 0) {
-				$query .= sprintf(' WHERE %s', implode(' AND ', $where));
-			}
-
-			// Add Ordering
-			if (count($this->orderBy) > 0) {
-				$orders = [];
-				foreach ($this->orderBy as $order) {
-					$orders[] = sprintf('`%s` %s', $order[0], $order[1]);
-				}
-				$query .= ' ORDER BY ' . implode(', ', $orders);
-			}
-
-			// Add LIMIT
-			if ($this->limit !== FALSE) {
-				if ($this->limit[1] === FALSE) {
-					$query .= sprintf(' LIMIT %d', $this->limit[0]);
-				} else {
-					$query .= sprintf(' LIMIT %d,%d', $this->limit[0], $this->limit[1]);
-				}
-			}
-
-			// Return the query and it's params!
-			return [$query, $params];
+		public function delete() {
+			return (new Actions\Delete($this->getPDO(), $this->getTable()))->addOperations($this->getOperations('*'))->execute();
 		}
+
+		// Filler methods.
+		public static function action() { throw new Exception('Search::action() is not implemented.'); }
+		public function execute() { throw new Exception('Search::executed() is not implemented.'); }
 	}
