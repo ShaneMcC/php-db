@@ -59,7 +59,7 @@
 			if ($driver == 'sqlite') {
 				$query = "INSERT OR REPLACE INTO `__MetaData` (`key`, `value`) VALUES (:key, :value)";
 			} else {
-				$query = "INSERT INTO `__MetaData` (`key`, `value`) VALUES (:key, :value)";
+				$query = "INSERT INTO `__MetaData` (`key`, `value`) VALUES (:key, :value) ON DUPLICATE KEY UPDATE `value` = :value";
 			}
 			$params = array(":key" => $key, ":value" => $value);
 
