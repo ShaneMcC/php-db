@@ -25,6 +25,18 @@
 			return $this->pdo;
 		}
 
+		public function beginTransaction() {
+			return $this->pdo->beginTransaction();
+		}
+
+		public function commit() {
+			return $this->pdo->commit();
+		}
+
+		public function rollBack() {
+			return $this->pdo->rollBack();
+		}
+
 		public function tableExists($table) {
 			try {
 				$result = $this->pdo->query("SELECT 1 FROM $table LIMIT 1");
