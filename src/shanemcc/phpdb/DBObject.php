@@ -225,9 +225,8 @@
 		 * @return TRUE if we saved successfully, else false.
 		 */
 		public function save() {
-			$this->presave();
-
 			try {
+				$this->presave();
 				if (!$this->validate()) { return FALSE; }
 			} catch (Exception $ex) {
 				return FALSE;
