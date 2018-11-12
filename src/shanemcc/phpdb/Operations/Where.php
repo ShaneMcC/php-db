@@ -19,9 +19,7 @@
 			$this->comparator = $comparator;
 			$this->value = $value;
 
-			list($w, $p) = $this->build();
-			$this->where = $w;
-			$this->params = $p;
+			$this->build();
 		}
 
 		public function __toString() {
@@ -32,7 +30,7 @@
 			return $this->params;
 		}
 
-		private function build() {
+		public function build($paramPrefix = '') {
 			$where = '';
 			$params = [];
 
@@ -47,14 +45,14 @@
 				// these params.
 				for ($i = 0; $i < count($this->value); $i++) {
 					// PDO-Friendly param name.
-					$params[sprintf(':%s_%d', $this->key, $i)] = $this->value[$i];
+					$params[sprintf(':%s%s_%d', $paramPrefix, $this->key, $i)] = $this->value[$i];
 
 					// If we're using IN then we just generate an array of
 					// parameters, else generate the usual <key> <comparator> <param>
 					if ($useIN) {
-						$arrayWhere[] = sprintf(':%s_%d', $this->key, $i);
+						$arrayWhere[] = sprintf(':%s%s_%d', $paramPrefix, $this->key, $i);
 					} else {
-						$arrayWhere[] = sprintf('`%s` %s :%s_%d', $this->key, $this->comparator, $this->key, $i);
+						$arrayWhere[] = sprintf('`%s` %s :%s%s_%d', $this->key, $this->comparator, $paramPrefix, $this->key, $i);
 					}
 				}
 
@@ -72,11 +70,12 @@
 				}
 			} else {
 				// Not an array, a nice simple <key> <comparator> <value> bit!
-				$where = sprintf('`%s` %s :%s', $this->key, ($this->comparator === null ? '=' : $this->comparator), $this->key);
-				$params[':' . $this->key] = $this->value;
+				$where = sprintf('`%s` %s :%s%s', $this->key, ($this->comparator === null ? '=' : $this->comparator), $paramPrefix, $this->key);
+				$params[':' . $paramPrefix . $this->key] = $this->value;
 			}
 
-			return [$where, $params];
+			$this->where = $where;
+			$this->params = $params;
 		}
 
 		public static function operation() { return 'WHERE'; }

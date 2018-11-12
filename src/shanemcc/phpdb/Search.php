@@ -58,6 +58,28 @@
 		}
 
 		/**
+		 * Add a or where to the search.
+		 *
+		 * @param $items Array of ([$key, $value] or [$key, $value, $comparator]) items
+		 * @return $this for chaining.
+		 */
+		public function whereOr($items) {
+			$operations = [];
+
+			foreach ($items as $item) {
+				if (count($item) == 1) { continue; }
+				else if (count($item) == 2) { $item[] = null; }
+				else if (count($item) > 3) { continue; }
+
+				[$key, $value, $comparator] = $item;
+
+				$operations[] = new Operations\Where($key, $value, $comparator);
+			}
+
+			return $this->addOperation(new Operations\WhereOr($operations));
+		}
+
+		/**
 		 * Add an order clause.
 		 *
 		 * @param $key Key to order by
