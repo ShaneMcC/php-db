@@ -48,8 +48,12 @@
 		public function execute() {
 			list($query, $params) = $this->build($this);
 
-			$statement = $this->getPDO()->prepare($query);
-			$result = $statement->execute($params);
+			try {
+				$statement = $this->getPDO()->prepare($query);
+				$result = $statement->execute($params);
+			} catch (\PDOException $t) {
+				$result = FALSE;
+			}
 			$rows = [];
 			if ($result) {
 				$fetch = $statement->fetchAll(\PDO::FETCH_ASSOC);

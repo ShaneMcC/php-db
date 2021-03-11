@@ -54,9 +54,13 @@
 			$query = "SELECT `value` FROM `__MetaData` WHERE `key` = :key";
 			$params = array(":key" => $key);
 
-			$statement = $this->pdo->prepare($query);
-			$statement->execute($params);
-			$result = $statement->fetch(PDO::FETCH_ASSOC);
+			try {
+				$statement = $this->pdo->prepare($query);
+				$statement->execute($params);
+				$result = $statement->fetch(PDO::FETCH_ASSOC);
+			} catch (\PDOException $t) {
+				$result = FALSE;
+			}
 
 			if ($result) {
 				return $result['value'];
@@ -75,8 +79,12 @@
 			}
 			$params = array(":key" => $key, ":value" => $value);
 
-			$statement = $this->pdo->prepare($query);
-			$result = $statement->execute($params);
+			try {
+				$statement = $this->pdo->prepare($query);
+				$result = $statement->execute($params);
+			} catch (\PDOException $t) {
+				$result = FALSE;
+			}
 			return $result;
 		}
 

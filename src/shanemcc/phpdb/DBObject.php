@@ -260,8 +260,12 @@
 				$query = sprintf('INSERT INTO `%s` (%s) VALUES (%s)', static::$_table, implode(', ', $keys), implode(', ', $placeholders));
 			}
 
-			$statement = $this->myDB->getPDO()->prepare($query);
-			$result = $statement->execute($params);
+			try {
+				$statement = $this->myDB->getPDO()->prepare($query);
+				$result = $statement->execute($params);
+			} catch (\PDOException $t) {
+				$result = FALSE;
+			}
 			if ($result) {
 				if (!$this->isKnown()) {
 					$this->setData(static::$_key, $this->myDB->getPDO()->lastInsertId());
@@ -287,9 +291,13 @@
 			if (!$this->isKnown()) { return FALSE; }
 			$this->preDelete();
 			$query = sprintf('DELETE FROM %s WHERE `%s` = :key', static::$_table, static::$_key);
-			$statement = $this->myDB->getPDO()->prepare($query);
-			$params[':key'] = $this->getData(static::$_key);
-			$result = $statement->execute($params);
+			try {
+				$statement = $this->myDB->getPDO()->prepare($query);
+				$params[':key'] = $this->getData(static::$_key);
+				$result = $statement->execute($params);
+			} catch (\PDOException $t) {
+				$result = FALSE;
+			}
 			if (!$result) {
 				$this->lastError = $statement->errorInfo();
 			}

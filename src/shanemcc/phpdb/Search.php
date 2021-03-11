@@ -158,5 +158,5 @@
 
 		// Filler methods.
 		public static function action() { throw new Exception('Search::action() is not implemented.'); }
-		public function execute() { throw new Exception('Search::executed() is not implemented.'); }
+		public function execute() { throw new Exception('Search::execute() is not implemented.'); }
 	}

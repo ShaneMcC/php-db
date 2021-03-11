@@ -11,7 +11,12 @@
 		}
 
 		public function run($pdo) {
-			if ($pdo->exec($this->query) !== FALSE) {
+			try {
+				$result = $pdo->exec($this->query);
+			} catch (\PDOException $t) {
+				$result = FALSE;
+			}
+			if ($result !== FALSE) {
 				$this->result = TRUE;
 				echo 'success', "\n";
 			} else {
