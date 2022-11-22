@@ -337,6 +337,7 @@
 		public function serialize() {
 			return serialize(['data' => $this->toArray(), 'changed' => $this->hasChanged()]);
 		}
+		public function __serialize() { return $this->serialize(); }
 
 		/**
 		 * Unserialise this object.
@@ -348,6 +349,7 @@
 			$this->setFromArray($data['data']);
 			$this->setChanged($data['changed']);
 		}
+		public function __unserialize($data) { $this->unserialize($data); }
 
 		/**
 		 * Serialise this object to json
