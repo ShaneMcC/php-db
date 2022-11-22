@@ -356,7 +356,7 @@
 		 *
 		 * @return JSON Representation of this object.
 		 */
-		public function jsonSerialize() {
+		public function jsonSerialize(): mixed {
 			return $this->toArray();
 		}
 
