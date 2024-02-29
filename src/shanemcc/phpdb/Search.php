@@ -34,7 +34,6 @@
 		 * @return FALSE if we were unable to find rows, else an array of rows.
 		 */
 		public function searchRows($searchFields, $comparators = []) {
-			$this->whereFields = [];
 			foreach ($searchFields as $key => $value) {
 				$comparator = isset($comparators[$key]) ? $comparators[$key] : null;
 
@@ -157,6 +156,6 @@
 		}
 
 		// Filler methods.
-		public static function action() { throw new Exception('Search::action() is not implemented.'); }
-		public function execute() { throw new Exception('Search::execute() is not implemented.'); }
+		public static function action() { throw new \Exception('Search::action() is not implemented.'); }
+		public function execute() { throw new \Exception('Search::execute() is not implemented.'); }
 	}

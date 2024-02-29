@@ -6,6 +6,8 @@
 		private $key;
 		private $comparator;
 		private $value;
+		private $where;
+		private $params;
 
 		/*
 		 * Create a where item.
