@@ -45,7 +45,7 @@
 				$obj = new $class($this->_db);
 
 				$method = new ReflectionMethod($class, 'setFromArray');
-				$method->setAccessible(true);
+				if (PHP_VERSION_ID < 80100) { $method->setAccessible(true); }
 				$method->invoke($obj, $row, true);
 
 				$obj->postLoad();
