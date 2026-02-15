@@ -79,6 +79,19 @@
 		}
 
 		/**
+		 * Add a WHERE clause that uses JSON_EXTRACT to filter on a JSON column.
+		 *
+		 * @param $column Column containing JSON data.
+		 * @param $jsonPath JSON path key to extract (top-level key name).
+		 * @param $value Value to compare against.
+		 * @param $comparator (Default: '=') Comparator to use.
+		 * @return $this for chaining.
+		 */
+		public function whereJson($column, $jsonPath, $value, $comparator = null) {
+			return $this->addOperation(new Operations\WhereJsonExtract($column, $jsonPath, $value, $comparator));
+		}
+
+		/**
 		 * Add an order clause.
 		 *
 		 * @param $key Key to order by
@@ -129,6 +142,15 @@
 		 */
 		public function join($table, $on = null, $direction = null) {
 			return $this->addOperation(new Operations\Join($table, $on, $direction));
+		}
+
+		/**
+		 * Get a count of matching rows.
+		 *
+		 * @return int Count of matching rows.
+		 */
+		public function count() {
+			return (new Actions\Count($this->getPDO(), $this->getTable()))->addOperations($this->getOperations('*'))->execute();
 		}
 
 		/**
